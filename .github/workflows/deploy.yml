@@ -1,50 +1,28 @@
-name: Deploy Scalping Bot
-
-on:
-  push:
-    branches: [ main ]
-
 jobs:
   terraform-apply:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region:            us-east-1
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: "1.5.7"
+
       - name: Terraform Init & Apply
         working-directory: infra
+        env:
+          TF_VAR_polygon_api_key: ${{ secrets.POLYGON_API_KEY }}
+          TF_VAR_db_username:     ${{ secrets.DB_USERNAME }}
+          TF_VAR_db_password:     ${{ secrets.DB_PASSWORD }}
         run: |
           terraform init
           terraform apply -auto-approve
 
-  build-and-deploy:
-    needs: terraform-apply
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Build ingestion image
-        run: |
-          docker build -t ghcr.io/${{ github.repository_owner }}/ingestion:latest services/ingestion
-          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-          docker push ghcr.io/${{ github.repository_owner }}/ingestion:latest
-
-      - name: Build signals image
-        run: |
-          docker build -t ghcr.io/${{ github.repository_owner }}/signals:latest services/signals
-          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-          docker push ghcr.io/${{ github.repository_owner }}/signals:latest
-
-      - name: Build dashboard image
-        run: |
-          docker build -t ghcr.io/${{ github.repository_owner }}/dashboard:latest services/dashboard
-          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-          docker push ghcr.io/${{ github.repository_owner }}/dashboard:latest
-
-      - name: Deploy to AWS ECS
-        run: |
-          echo "Desplegando servicios en ECS..."
