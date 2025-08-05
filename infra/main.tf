@@ -28,9 +28,9 @@ resource "aws_ecs_cluster" "scalping" {
   name = "scalping-cluster"
 }
 
-resource "aws_db_subnet_group" "scalping" {
-  name       = "scalping-db-subnet-group"
-  subnet_ids = module.vpc.private_subnets
+# En lugar de resource "aws_db_subnet_group", traemos el ya creado:
+data "aws_db_subnet_group" "existing" {
+  name = "scalping-db-subnet-group"
 }
 
 resource "aws_db_instance" "timescaledb" {
@@ -44,19 +44,10 @@ resource "aws_db_instance" "timescaledb" {
   password               = var.db_password
   publicly_accessible    = false
   vpc_security_group_ids = [module.vpc.default_security_group_id]
-  db_subnet_group_name   = aws_db_subnet_group.scalping.name
+  # Referenciamos el existing data source:
+  db_subnet_group_name   = data.aws_db_subnet_group.existing.name
   skip_final_snapshot    = true
 }
 
-# ------------------------------------------------
-# Secrets Manager: comentado para no recrear
-# Ya existe polygon-api-key en tu cuenta de AWS
-# ------------------------------------------------
-#resource "aws_secretsmanager_secret" "polygon" {
-#  name = "polygon-api-key"
-#}
-#
-#resource "aws_secretsmanager_secret_version" "polygon_version" {
-#  secret_id     = aws_secretsmanager_secret.polygon.id
-#  secret_string = var.polygon_api_key
-#}
+# Secrets Manager NO lo volvemos a crear para no chocar con el existente
+# (asumimos que ya está creado en AWS)
