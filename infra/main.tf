@@ -13,52 +13,27 @@ provider "aws" {
   region = var.aws_region
 }
 
-# -------------------------------------------------------
-# 1) TRAEMOS LA VPC EXISTENTE (ej. la default)
-# -------------------------------------------------------
-data "aws_vpc" "existing" {
+# 1) Traemos la VPC por defecto (ya existente)
+data "aws_vpc" "default" {
   default = true
 }
 
-# -------------------------------------------------------
-# 2) TRAEMOS SUS SUBNETS (públicas y privadas)
-# -------------------------------------------------------
-data "aws_subnets" "all" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.existing.id]
-  }
+# 2) Traemos su Security Group por defecto
+data "aws_default_security_group" "default" {
+  vpc_id = data.aws_vpc.default.id
 }
 
-# Para el grupo de RDS solo usaremos las privadas:
-locals {
-  private_subnet_ids = [
-    for s in data.aws_subnets.all.ids : s
-    if contains(lookup(data.aws_subnets.all, "ids"), s) && 
-       contains(lookup(data.aws_subnets.all, "subnet_ids"), s) &&
-       # Ajusta este condicional según tu naming o tag para privadas:
-       # aquí asumimos que las privadas no tienen "Public" en su nombre
-       !(contains(s, "public"))
-  ]
-}
-
-# -------------------------------------------------------
-# 3) CLUSTER ECS
-# -------------------------------------------------------
-resource "aws_ecs_cluster" "scalping" {
-  name = "scalping-cluster"
-}
-
-# -------------------------------------------------------
-# 4) TRAEMOS EL DB SUBNET GROUP YA EXISTENTE
-# -------------------------------------------------------
+# 3) Traemos el DB Subnet Group ya creado
 data "aws_db_subnet_group" "existing" {
   name = "scalping-db-subnet-group"
 }
 
-# -------------------------------------------------------
-# 5) INSTANCIA RDS
-# -------------------------------------------------------
+# 4) Creamos el ECS Cluster
+resource "aws_ecs_cluster" "scalping" {
+  name = "scalping-cluster"
+}
+
+# 5) Creamos la instancia RDS apuntando al SG y al subnet group existentes
 resource "aws_db_instance" "timescaledb" {
   identifier             = "scalping-db"
   engine                 = "postgres"
@@ -68,8 +43,11 @@ resource "aws_db_instance" "timescaledb" {
   username               = var.db_username
   password               = var.db_password
   publicly_accessible    = false
-  vpc_security_group_ids = [data.aws_vpc.existing.default_security_group_id]
+
+  vpc_security_group_ids = [
+    data.aws_default_security_group.default.id
+  ]
+
   db_subnet_group_name   = data.aws_db_subnet_group.existing.name
   skip_final_snapshot    = true
 }
-
