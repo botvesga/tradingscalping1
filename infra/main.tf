@@ -28,7 +28,7 @@ resource "aws_ecs_cluster" "scalping" {
   name = "scalping-cluster"
 }
 
-# En lugar de resource "aws_db_subnet_group", traemos el ya creado:
+# Leemos el DB subnet group ya existente en tu cuenta
 data "aws_db_subnet_group" "existing" {
   name = "scalping-db-subnet-group"
 }
@@ -36,7 +36,6 @@ data "aws_db_subnet_group" "existing" {
 resource "aws_db_instance" "timescaledb" {
   identifier             = "scalping-db"
   engine                 = "postgres"
-  engine_version         = "14.10"
   instance_class         = "db.t3.medium"
   allocated_storage      = 20
   name                   = "scalping"
@@ -44,10 +43,16 @@ resource "aws_db_instance" "timescaledb" {
   password               = var.db_password
   publicly_accessible    = false
   vpc_security_group_ids = [module.vpc.default_security_group_id]
-  # Referenciamos el existing data source:
   db_subnet_group_name   = data.aws_db_subnet_group.existing.name
   skip_final_snapshot    = true
 }
 
-# Secrets Manager NO lo volvemos a crear para no chocar con el existente
-# (asumimos que ya está creado en AWS)
+# Secrets Manager comentado porque ya existe en tu cuenta
+# data "aws_secretsmanager_secret" "polygon" {
+#   name = "polygon-api-key"
+# }
+
+# resource "aws_secretsmanager_secret_version" "polygon_version" {
+#   secret_id     = data.aws_secretsmanager_secret.polygon.id
+#   secret_string = var.polygon_api_key
+# }
