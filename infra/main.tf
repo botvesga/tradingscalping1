@@ -24,9 +24,8 @@ module "vpc" {
 }
 
 # Cluster ECS
-resource "aws_ecs_cluster" "scalping" {
-  name = "scalping-cluster"
-}
+-  db_subnet_group_name = module.vpc.default_db_subnet_group
++  db_subnet_group_name = module.vpc.database_subnet_group_name
 
 # RDS PostgreSQL (TimescaleDB)
 resource "aws_db_instance" "timescaledb" {
