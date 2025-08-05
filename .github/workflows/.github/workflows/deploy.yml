@@ -1,0 +1,46 @@
+name: Deploy Scalping Bot
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  terraform-apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Terraform Init & Apply
+        working-directory: infra
+        run: |
+          terraform init
+          terraform apply -auto-approve
+
+  build-and-deploy:
+    name: Build & Deploy Services
+    needs: terraform-apply
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      # Build & push ingestion image
+      - name: Build ingestion image
+        run: |
+          docker build -t ${{ github.repository_owner }}/ingestion:latest services/ingestion
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker tag ${{ github.repository_owner }}/ingestion:latest ghcr.io/${{ github.repository_owner }}/ingestion:latest
+          docker push ghcr.io/${{ github.repository_owner }}/ingestion:latest
+
+      # (Repite para signals y dashboard según tu scaffold)
+      - name: Deploy to AWS ECS
+        run: |
+          # Aquí irían comandos AWS CLI o aws ecs update-service
+          echo "Desplegando servicios en ECS..."
