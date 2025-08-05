@@ -13,40 +13,35 @@ provider "aws" {
   region = var.aws_region
 }
 
-# 1) Cargamos la VPC por defecto
+# 1) VPC por defecto
 data "aws_vpc" "default" {
   default = true
 }
 
-# 2) Cargamos su Default Security Group
-data "aws_default_security_group" "default" {
-  vpc_id = data.aws_vpc.default.id
-}
-
-# 3) Cargamos el DB Subnet Group existente
+# 2) DB Subnet Group ya creado
 data "aws_db_subnet_group" "existing" {
   name = "scalping-db-subnet-group"
 }
 
-# 4) ECS Cluster
+# 3) ECS Cluster
 resource "aws_ecs_cluster" "scalping" {
   name = "scalping-cluster"
 }
 
-# 5) RDS (TimescaleDB)
+# 4) RDS TimescaleDB
 resource "aws_db_instance" "timescaledb" {
-  identifier             = "scalping-db"
-  engine                 = "postgres"
-  instance_class         = "db.t3.medium"
-  allocated_storage      = 20
-  name                   = "scalping"
-  username               = var.db_username
-  password               = var.db_password
-  publicly_accessible    = false
+  identifier           = "scalping-db"
+  engine               = "postgres"
+  instance_class       = "db.t3.medium"
+  allocated_storage    = 20
+  name                 = "scalping"
+  username             = var.db_username
+  password             = var.db_password
+  publicly_accessible  = false
 
-  # <<<--- Aquí YA usamos `.id` en lugar de `.default_security_group_id`
+  # <-- aquí usamos el default SG de la VPC
   vpc_security_group_ids = [
-    data.aws_default_security_group.default.id
+    data.aws_vpc.default.default_security_group_id
   ]
 
   db_subnet_group_name = data.aws_db_subnet_group.existing.name
