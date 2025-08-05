@@ -1,6 +1,6 @@
 terraform {
   required_version = ">= 1.0"
- 
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -13,26 +13,52 @@ provider "aws" {
   region = var.aws_region
 }
 
-module "vpc" {
-  source             = "terraform-aws-modules/vpc/aws"
-  version            = "3.14.2"
-  name               = "scalping-vpc"
-  cidr               = "10.0.0.0/16"
-  azs                = ["${var.aws_region}a", "${var.aws_region}b"]
-  public_subnets     = ["10.0.1.0/24", "10.0.2.0/24"]
-  private_subnets    = ["10.0.101.0/24", "10.0.102.0/24"]
-  enable_nat_gateway = false
+# -------------------------------------------------------
+# 1) TRAEMOS LA VPC EXISTENTE (ej. la default)
+# -------------------------------------------------------
+data "aws_vpc" "existing" {
+  default = true
 }
 
+# -------------------------------------------------------
+# 2) TRAEMOS SUS SUBNETS (públicas y privadas)
+# -------------------------------------------------------
+data "aws_subnets" "all" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.existing.id]
+  }
+}
+
+# Para el grupo de RDS solo usaremos las privadas:
+locals {
+  private_subnet_ids = [
+    for s in data.aws_subnets.all.ids : s
+    if contains(lookup(data.aws_subnets.all, "ids"), s) && 
+       contains(lookup(data.aws_subnets.all, "subnet_ids"), s) &&
+       # Ajusta este condicional según tu naming o tag para privadas:
+       # aquí asumimos que las privadas no tienen "Public" en su nombre
+       !(contains(s, "public"))
+  ]
+}
+
+# -------------------------------------------------------
+# 3) CLUSTER ECS
+# -------------------------------------------------------
 resource "aws_ecs_cluster" "scalping" {
   name = "scalping-cluster"
 }
 
-# Leemos el DB subnet group ya existente en tu cuenta
+# -------------------------------------------------------
+# 4) TRAEMOS EL DB SUBNET GROUP YA EXISTENTE
+# -------------------------------------------------------
 data "aws_db_subnet_group" "existing" {
   name = "scalping-db-subnet-group"
 }
 
+# -------------------------------------------------------
+# 5) INSTANCIA RDS
+# -------------------------------------------------------
 resource "aws_db_instance" "timescaledb" {
   identifier             = "scalping-db"
   engine                 = "postgres"
@@ -42,17 +68,8 @@ resource "aws_db_instance" "timescaledb" {
   username               = var.db_username
   password               = var.db_password
   publicly_accessible    = false
-  vpc_security_group_ids = [module.vpc.default_security_group_id]
+  vpc_security_group_ids = [data.aws_vpc.existing.default_security_group_id]
   db_subnet_group_name   = data.aws_db_subnet_group.existing.name
   skip_final_snapshot    = true
 }
 
-# Secrets Manager comentado porque ya existe en tu cuenta
-# data "aws_secretsmanager_secret" "polygon" {
-#   name = "polygon-api-key"
-# }
-
-# resource "aws_secretsmanager_secret_version" "polygon_version" {
-#   secret_id     = data.aws_secretsmanager_secret.polygon.id
-#   secret_string = var.polygon_api_key
-# }
