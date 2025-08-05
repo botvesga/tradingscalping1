@@ -1,0 +1,13 @@
+.travis.yml                  ← (vacío o con config genérica)
+.gitignore                   ← Añade Python, Terraform, Node, etc.
+README.md                    ← Te preparé un README inicial, pega este contenido.
+.github/workflows/deploy.yml ← Pipeline GitHub Actions + Terraform.
+infra/main.tf                ← VPC, ECS/Fargate, RDS, Secrets Manager.
+infra/variables.tf
+services/ingestion/Dockerfile
+services/ingestion/ingest.py
+services/signals/Dockerfile
+services/signals/app.py
+services/dashboard/Dockerfile
+services/dashboard/src/index.html  ← placeholder o tu boilerplate React.
+backtest/monte_carlo.py
