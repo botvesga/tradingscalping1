@@ -36,7 +36,7 @@ resource "aws_db_subnet_group" "scalping" {
 resource "aws_db_instance" "timescaledb" {
   identifier             = "scalping-db"
   engine                 = "postgres"
-  engine_version         = "14.9"
+  engine_version         = "14.10"
   instance_class         = "db.t3.medium"
   allocated_storage      = 20
   name                   = "scalping"
@@ -48,11 +48,15 @@ resource "aws_db_instance" "timescaledb" {
   skip_final_snapshot    = true
 }
 
-resource "aws_secretsmanager_secret" "polygon" {
-  name = "polygon-api-key"
-}
-
-resource "aws_secretsmanager_secret_version" "polygon_version" {
-  secret_id     = aws_secretsmanager_secret.polygon.id
-  secret_string = var.polygon_api_key
-}
+# ------------------------------------------------
+# Secrets Manager: comentado para no recrear
+# Ya existe polygon-api-key en tu cuenta de AWS
+# ------------------------------------------------
+#resource "aws_secretsmanager_secret" "polygon" {
+#  name = "polygon-api-key"
+#}
+#
+#resource "aws_secretsmanager_secret_version" "polygon_version" {
+#  secret_id     = aws_secretsmanager_secret.polygon.id
+#  secret_string = var.polygon_api_key
+#}
