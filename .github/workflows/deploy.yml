@@ -1,3 +1,9 @@
+name: Deploy Scalping Bot
+
+on:
+  push:
+    branches:
+      - main
 jobs:
   terraform-apply:
     runs-on: ubuntu-latest
